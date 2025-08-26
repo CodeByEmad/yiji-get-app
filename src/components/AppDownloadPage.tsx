@@ -14,7 +14,7 @@ export default function AppDownloadPage() {
   const [showFallback, setShowFallback] = useState(false);
 
   useEffect(() => {
-    if (isMobile || isIOS) {
+    if (isMobile) {
       setRedirecting(true);
       
       const redirectUrl = isIOS ? DOWNLOAD_LINKS.ios : DOWNLOAD_LINKS.android;
