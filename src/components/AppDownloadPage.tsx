@@ -14,17 +14,23 @@ export default function AppDownloadPage() {
   const [showFallback, setShowFallback] = useState(false);
 
   useEffect(() => {
+    console.log('📱 App Download Page - Device Info:', { isIOS, isAndroid, isMobile });
+    
     if (isMobile) {
+      console.log('🚀 Mobile device detected - starting redirect process');
       setRedirecting(true);
       
       const redirectUrl = isIOS ? DOWNLOAD_LINKS.ios : DOWNLOAD_LINKS.android;
+      console.log('🔗 Redirect URL:', redirectUrl);
       
       // Add a small delay for better UX
       const timer = setTimeout(() => {
+        console.log('⏰ Redirecting now...');
         window.location.href = redirectUrl;
         
         // Show fallback after another delay in case redirect fails
         setTimeout(() => {
+          console.log('⚠️ Redirect may have failed - showing fallback');
           setRedirecting(false);
           setShowFallback(true);
         }, 2000);
@@ -33,6 +39,7 @@ export default function AppDownloadPage() {
       return () => clearTimeout(timer);
     } else {
       // Desktop - show both options immediately
+      console.log('🖥️ Desktop device detected - showing both options');
       setShowFallback(true);
     }
   }, [isIOS, isAndroid, isMobile]);

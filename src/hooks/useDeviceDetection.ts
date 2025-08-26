@@ -22,6 +22,14 @@ export function useDeviceDetection(): DeviceInfo {
     const isAndroid = /android/i.test(userAgent);
     const isMobile = isIOS || isAndroid;
 
+    // Debug logging
+    console.log('🔍 Device Detection Results:');
+    console.log('User Agent:', userAgent);
+    console.log('Is iOS:', isIOS);
+    console.log('Is Android:', isAndroid);
+    console.log('Is Mobile:', isMobile);
+    console.log('Will redirect:', isMobile);
+
     setDeviceInfo({
       isIOS,
       isAndroid,
