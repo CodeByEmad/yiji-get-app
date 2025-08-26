@@ -18,9 +18,9 @@ export function useDeviceDetection(): DeviceInfo {
   useEffect(() => {
     const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera || '';
     
-    const isIOS = /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream;
+    const isIOS = (/iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream) || /Macintosh|Mac OS X/.test(userAgent);
     const isAndroid = /android/i.test(userAgent);
-    const isMobile = isIOS || isAndroid;
+    const isMobile = /iPad|iPhone|iPod|android/i.test(userAgent);
 
     setDeviceInfo({
       isIOS,
