@@ -3,9 +3,15 @@ import { useDeviceDetection } from '@/hooks/useDeviceDetection';
 import { Button } from '@/components/ui/button';
 import { Smartphone, Download, Apple, Bot } from 'lucide-react';
 
-const DOWNLOAD_LINKS = {
-  ios: "https://apps.apple.com/sa/app/yiji-%D9%8A%D8%AC%D9%8A/id6464392688",
-  android: "https://play.google.com/store/apps/details?id=com.yiji.food"
+const APP_CONFIG = {
+  ios: {
+    scheme: "yiji://", // Custom URL scheme for iOS app
+    storeUrl: "https://apps.apple.com/sa/app/yiji-%D9%8A%D8%AC%D9%8A/id6464392688"
+  },
+  android: {
+    scheme: "intent://yiji#Intent;scheme=yiji;package=com.yiji.food;S.browser_fallback_url=https://play.google.com/store/apps/details?id=com.yiji.food;end",
+    storeUrl: "https://play.google.com/store/apps/details?id=com.yiji.food"
+  }
 };
 
 export default function AppDownloadPage() {
@@ -13,27 +19,55 @@ export default function AppDownloadPage() {
   const [redirecting, setRedirecting] = useState(false);
   const [showFallback, setShowFallback] = useState(false);
 
+  const tryOpenApp = (platform: 'ios' | 'android') => {
+    const config = APP_CONFIG[platform];
+    console.log(`🎯 Trying to open ${platform} app with scheme: ${config.scheme}`);
+    
+    if (platform === 'ios') {
+      // For iOS: try opening app, fallback to store if not installed
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = config.scheme;
+      document.body.appendChild(iframe);
+      
+      // Clean up iframe after a short delay
+      setTimeout(() => {
+        document.body.removeChild(iframe);
+      }, 500);
+      
+      // Fallback to App Store after delay if app didn't open
+      setTimeout(() => {
+        console.log('📱 iOS app may not be installed, redirecting to App Store');
+        window.location.href = config.storeUrl;
+      }, 1500);
+    } else {
+      // For Android: use intent URL that automatically handles fallback
+      console.log('🤖 Using Android intent URL with automatic fallback');
+      window.location.href = config.scheme;
+    }
+  };
+
   useEffect(() => {
     console.log('📱 App Download Page - Device Info:', { isIOS, isAndroid, isMobile });
     
     if (isMobile) {
-      console.log('🚀 Mobile device detected - starting redirect process');
+      console.log('🚀 Mobile device detected - starting app redirect process');
       setRedirecting(true);
       
-      const redirectUrl = isIOS ? DOWNLOAD_LINKS.ios : DOWNLOAD_LINKS.android;
-      console.log('🔗 Redirect URL:', redirectUrl);
+      const platform = isIOS ? 'ios' : 'android';
+      console.log(`🔗 Attempting to open ${platform} app`);
       
       // Add a small delay for better UX
       const timer = setTimeout(() => {
-        console.log('⏰ Redirecting now...');
-        window.location.href = redirectUrl;
+        console.log('⏰ Trying to open app now...');
+        tryOpenApp(platform);
         
-        // Show fallback after another delay in case redirect fails
+        // Show fallback after delay in case redirect fails
         setTimeout(() => {
-          console.log('⚠️ Redirect may have failed - showing fallback');
+          console.log('⚠️ App redirect may have failed - showing fallback');
           setRedirecting(false);
           setShowFallback(true);
-        }, 2000);
+        }, 3000);
       }, 1000);
 
       return () => clearTimeout(timer);
@@ -45,7 +79,7 @@ export default function AppDownloadPage() {
   }, [isIOS, isAndroid, isMobile]);
 
   const handleDownload = (platform: 'ios' | 'android') => {
-    window.open(DOWNLOAD_LINKS[platform], '_blank');
+    window.open(APP_CONFIG[platform].storeUrl, '_blank');
   };
 
   return (
@@ -70,10 +104,10 @@ export default function AppDownloadPage() {
                 <div className="animate-spin rounded-full h-16 w-16 border-4 border-app-primary border-t-transparent"></div>
               </div>
               <h2 className="text-xl font-semibold text-foreground">
-                Redirecting to {isIOS ? 'App Store' : 'Google Play'}...
+                Opening Yiji يجي App...
               </h2>
               <p className="text-muted-foreground">
-                Taking you to the right store for your device
+                {isIOS ? 'Trying to open app or redirect to App Store' : 'Trying to open app or redirect to Google Play'}
               </p>
             </div>
           ) : (
