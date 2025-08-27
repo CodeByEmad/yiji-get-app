@@ -24,22 +24,42 @@ export default function AppDownloadPage() {
     console.log(`🎯 Trying to open ${platform} app with scheme: ${config.scheme}`);
     
     if (platform === 'ios') {
-      // For iOS: try opening app, fallback to store if not installed
-      const iframe = document.createElement('iframe');
-      iframe.style.display = 'none';
-      iframe.src = config.scheme;
-      document.body.appendChild(iframe);
-      
-      // Clean up iframe after a short delay
-      setTimeout(() => {
-        document.body.removeChild(iframe);
-      }, 500);
-      
-      // Fallback to App Store after delay if app didn't open
-      setTimeout(() => {
+      // For iOS: try opening via URL scheme; cancel fallback if app opens (page becomes hidden)
+      let fallbackTimer: number | undefined;
+      const cleanup = () => {
+        document.removeEventListener('visibilitychange', onVisibilityChange);
+        window.removeEventListener('pagehide', onPageHide);
+        window.removeEventListener('blur', onPageHide);
+      };
+      const onPageHide = () => {
+        console.log('✅ iOS: Page hidden/blurred — app likely opened, cancelling fallback');
+        if (fallbackTimer) {
+          clearTimeout(fallbackTimer);
+          fallbackTimer = undefined;
+        }
+        cleanup();
+      };
+      const onVisibilityChange = () => {
+        if (document.visibilityState === 'hidden') {
+          onPageHide();
+        }
+      };
+
+      console.log('📲 iOS: Navigating to custom scheme');
+      // Kick off app open
+      window.location.href = config.scheme;
+
+      // If app didn't open, fallback to App Store
+      fallbackTimer = window.setTimeout(() => {
         console.log('📱 iOS app may not be installed, redirecting to App Store');
+        cleanup();
         window.location.href = config.storeUrl;
-      }, 1500);
+      }, 2000);
+
+      // Listen for signals that the app opened
+      document.addEventListener('visibilitychange', onVisibilityChange);
+      window.addEventListener('pagehide', onPageHide);
+      window.addEventListener('blur', onPageHide);
     } else {
       // For Android: use intent URL that automatically handles fallback
       console.log('🤖 Using Android intent URL with automatic fallback');
