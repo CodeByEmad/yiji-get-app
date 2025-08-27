@@ -19,8 +19,11 @@ export default function AppDownloadPage() {
     console.log('🎯 Starting app redirect for all devices');
     
     const tryOpenApp = () => {
-      if (isIOS) {
-        console.log('📱 iOS detected - trying to open iOS app');
+      const isMac = /Mac/.test(navigator.userAgent) && !/iPhone|iPad|iPod/.test(navigator.userAgent);
+      
+      if (isIOS || isMac) {
+        const deviceType = isIOS ? 'iOS' : 'Mac';
+        console.log(`🍎 ${deviceType} detected - trying to open iOS app first`);
         
         let fallbackTimer: number | undefined;
         let appOpened = false;
@@ -32,7 +35,7 @@ export default function AppDownloadPage() {
         };
         
         const onPageHide = () => {
-          console.log('✅ iOS: Page hidden/blurred — app opened, cancelling fallback');
+          console.log(`✅ ${deviceType}: Page hidden/blurred — app opened, cancelling fallback`);
           appOpened = true;
           if (fallbackTimer) {
             clearTimeout(fallbackTimer);
@@ -58,28 +61,55 @@ export default function AppDownloadPage() {
         // Fallback to App Store after delay if app didn't open
         fallbackTimer = window.setTimeout(() => {
           if (!appOpened) {
-            console.log('📱 App may not be installed, redirecting to App Store');
+            console.log(`🍎 ${deviceType}: App may not be installed, redirecting to App Store`);
             cleanup();
             window.location.href = APP_CONFIG.ios.storeUrl;
           }
         }, 2000);
       } else {
-        // Check if it's Mac/Apple device (should go to App Store) or Android/other (Play Store)
-        const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.userAgent);
+        console.log('🤖 Android/Other detected - trying Android app first');
         
-        if (isMac) {
-          console.log('🍎 Mac detected - redirecting to App Store');
-          window.location.href = APP_CONFIG.ios.storeUrl;
-        } else {
-          console.log('🤖 Android/Other detected - trying Android app first');
-          // Try Android app first, then Play Store
-          window.location.href = APP_CONFIG.android.scheme;
-          
-          setTimeout(() => {
-            console.log('🤖 Redirecting to Play Store');
+        let fallbackTimer: number | undefined;
+        let appOpened = false;
+        
+        const cleanup = () => {
+          document.removeEventListener('visibilitychange', onVisibilityChange);
+          window.removeEventListener('pagehide', onPageHide);
+          window.removeEventListener('blur', onPageHide);
+        };
+        
+        const onPageHide = () => {
+          console.log('✅ Android: Page hidden/blurred — app opened, cancelling fallback');
+          appOpened = true;
+          if (fallbackTimer) {
+            clearTimeout(fallbackTimer);
+            fallbackTimer = undefined;
+          }
+          cleanup();
+        };
+        
+        const onVisibilityChange = () => {
+          if (document.visibilityState === 'hidden') {
+            onPageHide();
+          }
+        };
+
+        // Listen for signals that the app opened
+        document.addEventListener('visibilitychange', onVisibilityChange);
+        window.addEventListener('pagehide', onPageHide);
+        window.addEventListener('blur', onPageHide);
+        
+        // Try Android app using intent URL (which has built-in fallback)
+        window.location.href = APP_CONFIG.android.scheme;
+        
+        // Additional fallback for non-Android devices
+        fallbackTimer = window.setTimeout(() => {
+          if (!appOpened) {
+            console.log('🤖 Android: App may not be installed, redirecting to Play Store');
+            cleanup();
             window.location.href = APP_CONFIG.android.storeUrl;
-          }, 2000);
-        }
+          }
+        }, 2000);
       }
     };
 
