@@ -71,9 +71,21 @@ export default function AppDownloadPage() {
         window.addEventListener('blur', onPageHide);
         window.addEventListener('focus', onFocus);
         
-        // Try to open iOS app - direct approach for better compatibility
+        // Try to open iOS app using iframe to avoid "invalid address" alert
         try {
-          window.location.href = APP_CONFIG.ios.scheme;
+          const iframe = document.createElement('iframe');
+          iframe.style.display = 'none';
+          iframe.style.position = 'absolute';
+          iframe.style.left = '-9999px';
+          iframe.src = APP_CONFIG.ios.scheme;
+          document.body.appendChild(iframe);
+          
+          // Clean up iframe after attempt
+          setTimeout(() => {
+            if (iframe.parentNode) {
+              iframe.parentNode.removeChild(iframe);
+            }
+          }, 1000);
         } catch (e) {
           console.log(`⚠️ ${deviceType}: Error opening app, will fallback to store`);
         }
@@ -135,8 +147,16 @@ export default function AppDownloadPage() {
         window.addEventListener('blur', onPageHide);
         window.addEventListener('focus', onFocus);
         
-        // Try Android app using intent URL (has built-in fallback in the URL)
-        window.location.href = APP_CONFIG.android.scheme;
+        // Try Android app using intent URL - safer approach
+        try {
+          // Use the intent URL which has built-in fallback
+          window.location.href = APP_CONFIG.android.scheme;
+        } catch (e) {
+          console.log('⚠️ Android: Error with intent URL, fallback to Play Store');
+          cleanup();
+          window.location.href = APP_CONFIG.android.storeUrl;
+          return;
+        }
         
         // Fallback to Play Store after delay if app didn't open
         fallbackTimer = window.setTimeout(() => {
