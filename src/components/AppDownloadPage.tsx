@@ -27,20 +27,17 @@ export default function AppDownloadPage() {
         
         let fallbackTimer: number | undefined;
         let appOpened = false;
-        let deepLinkIframe: HTMLIFrameElement | null = null;
+        let startTime = Date.now();
         
         const cleanup = () => {
           document.removeEventListener('visibilitychange', onVisibilityChange);
           window.removeEventListener('pagehide', onPageHide);
           window.removeEventListener('blur', onPageHide);
-          if (deepLinkIframe && deepLinkIframe.parentNode) {
-            deepLinkIframe.parentNode.removeChild(deepLinkIframe);
-            deepLinkIframe = null;
-          }
+          window.removeEventListener('focus', onFocus);
         };
         
-        const onPageHide = () => {
-          console.log(`✅ ${deviceType}: Page hidden/blurred — app opened, cancelling fallback`);
+        const onAppOpened = () => {
+          console.log(`✅ ${deviceType}: App opened successfully`);
           appOpened = true;
           if (fallbackTimer) {
             clearTimeout(fallbackTimer);
@@ -49,50 +46,62 @@ export default function AppDownloadPage() {
           cleanup();
         };
         
+        const onPageHide = () => {
+          console.log(`🔄 ${deviceType}: Page hidden - app might have opened`);
+          onAppOpened();
+        };
+        
+        const onFocus = () => {
+          // If we regain focus quickly (within 3 seconds), app likely didn't open
+          const timeElapsed = Date.now() - startTime;
+          if (timeElapsed < 3000) {
+            console.log(`🔄 ${deviceType}: Quick focus return (${timeElapsed}ms) - app may not be installed`);
+          }
+        };
+        
         const onVisibilityChange = () => {
           if (document.visibilityState === 'hidden') {
             onPageHide();
           }
         };
 
-        // Listen for signals that the app opened
+        // Listen for app opening signals
         document.addEventListener('visibilitychange', onVisibilityChange);
         window.addEventListener('pagehide', onPageHide);
         window.addEventListener('blur', onPageHide);
+        window.addEventListener('focus', onFocus);
         
-        // Try to open iOS app using hidden iframe to avoid "invalid address" alert
+        // Try to open iOS app - direct approach for better compatibility
         try {
-          deepLinkIframe = document.createElement('iframe');
-          deepLinkIframe.style.display = 'none';
-          deepLinkIframe.src = APP_CONFIG.ios.scheme;
-          document.body.appendChild(deepLinkIframe);
-        } catch (e) {
-          // Fallback to direct navigation if iframe creation fails
           window.location.href = APP_CONFIG.ios.scheme;
+        } catch (e) {
+          console.log(`⚠️ ${deviceType}: Error opening app, will fallback to store`);
         }
         
         // Fallback to App Store after delay if app didn't open
         fallbackTimer = window.setTimeout(() => {
           if (!appOpened) {
-            console.log(`🍎 ${deviceType}: App may not be installed, redirecting to App Store`);
+            console.log(`🍎 ${deviceType}: App not opened after 3s, redirecting to App Store`);
             cleanup();
             window.location.href = APP_CONFIG.ios.storeUrl;
           }
-        }, 2000);
+        }, 3000);
       } else if (isAndroid) {
         console.log('🤖 Android detected - trying Android app first');
         
         let fallbackTimer: number | undefined;
         let appOpened = false;
+        let startTime = Date.now();
         
         const cleanup = () => {
           document.removeEventListener('visibilitychange', onVisibilityChange);
           window.removeEventListener('pagehide', onPageHide);
           window.removeEventListener('blur', onPageHide);
+          window.removeEventListener('focus', onFocus);
         };
         
-        const onPageHide = () => {
-          console.log('✅ Android: Page hidden/blurred — app opened, cancelling fallback');
+        const onAppOpened = () => {
+          console.log('✅ Android: App opened successfully');
           appOpened = true;
           if (fallbackTimer) {
             clearTimeout(fallbackTimer);
@@ -101,31 +110,44 @@ export default function AppDownloadPage() {
           cleanup();
         };
         
+        const onPageHide = () => {
+          console.log('🔄 Android: Page hidden - app might have opened');
+          onAppOpened();
+        };
+        
+        const onFocus = () => {
+          // If we regain focus quickly (within 3 seconds), app likely didn't open
+          const timeElapsed = Date.now() - startTime;
+          if (timeElapsed < 3000) {
+            console.log(`🔄 Android: Quick focus return (${timeElapsed}ms) - app may not be installed`);
+          }
+        };
+        
         const onVisibilityChange = () => {
           if (document.visibilityState === 'hidden') {
             onPageHide();
           }
         };
 
-        // Listen for signals that the app opened
+        // Listen for app opening signals
         document.addEventListener('visibilitychange', onVisibilityChange);
         window.addEventListener('pagehide', onPageHide);
         window.addEventListener('blur', onPageHide);
+        window.addEventListener('focus', onFocus);
         
-        // Try Android app using intent URL (Chrome supports intent:// with fallback)
+        // Try Android app using intent URL (has built-in fallback in the URL)
         window.location.href = APP_CONFIG.android.scheme;
         
         // Fallback to Play Store after delay if app didn't open
         fallbackTimer = window.setTimeout(() => {
           if (!appOpened) {
-            console.log('🤖 Android: App may not be installed, redirecting to Play Store');
+            console.log('🤖 Android: App not opened after 3s, redirecting to Play Store');
             cleanup();
             window.location.href = APP_CONFIG.android.storeUrl;
           }
-        }, 2000);
+        }, 3000);
       } else {
         // Non-Android, non-Apple devices (e.g., Windows/Linux desktop)
-        // Avoid custom schemes that cause 'invalid address' messages
         console.log('🖥️ Other device detected - redirecting to Play Store');
         window.location.href = APP_CONFIG.android.storeUrl;
       }
