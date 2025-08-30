@@ -27,11 +27,16 @@ export default function AppDownloadPage() {
         
         let fallbackTimer: number | undefined;
         let appOpened = false;
+        let deepLinkIframe: HTMLIFrameElement | null = null;
         
         const cleanup = () => {
           document.removeEventListener('visibilitychange', onVisibilityChange);
           window.removeEventListener('pagehide', onPageHide);
           window.removeEventListener('blur', onPageHide);
+          if (deepLinkIframe && deepLinkIframe.parentNode) {
+            deepLinkIframe.parentNode.removeChild(deepLinkIframe);
+            deepLinkIframe = null;
+          }
         };
         
         const onPageHide = () => {
@@ -55,8 +60,16 @@ export default function AppDownloadPage() {
         window.addEventListener('pagehide', onPageHide);
         window.addEventListener('blur', onPageHide);
         
-        // Try to open iOS app
-        window.location.href = APP_CONFIG.ios.scheme;
+        // Try to open iOS app using hidden iframe to avoid "invalid address" alert
+        try {
+          deepLinkIframe = document.createElement('iframe');
+          deepLinkIframe.style.display = 'none';
+          deepLinkIframe.src = APP_CONFIG.ios.scheme;
+          document.body.appendChild(deepLinkIframe);
+        } catch (e) {
+          // Fallback to direct navigation if iframe creation fails
+          window.location.href = APP_CONFIG.ios.scheme;
+        }
         
         // Fallback to App Store after delay if app didn't open
         fallbackTimer = window.setTimeout(() => {
@@ -66,8 +79,8 @@ export default function AppDownloadPage() {
             window.location.href = APP_CONFIG.ios.storeUrl;
           }
         }, 2000);
-      } else {
-        console.log('🤖 Android/Other detected - trying Android app first');
+      } else if (isAndroid) {
+        console.log('🤖 Android detected - trying Android app first');
         
         let fallbackTimer: number | undefined;
         let appOpened = false;
@@ -99,10 +112,10 @@ export default function AppDownloadPage() {
         window.addEventListener('pagehide', onPageHide);
         window.addEventListener('blur', onPageHide);
         
-        // Try Android app using intent URL (which has built-in fallback)
+        // Try Android app using intent URL (Chrome supports intent:// with fallback)
         window.location.href = APP_CONFIG.android.scheme;
         
-        // Additional fallback for non-Android devices
+        // Fallback to Play Store after delay if app didn't open
         fallbackTimer = window.setTimeout(() => {
           if (!appOpened) {
             console.log('🤖 Android: App may not be installed, redirecting to Play Store');
@@ -110,6 +123,11 @@ export default function AppDownloadPage() {
             window.location.href = APP_CONFIG.android.storeUrl;
           }
         }, 2000);
+      } else {
+        // Non-Android, non-Apple devices (e.g., Windows/Linux desktop)
+        // Avoid custom schemes that cause 'invalid address' messages
+        console.log('🖥️ Other device detected - redirecting to Play Store');
+        window.location.href = APP_CONFIG.android.storeUrl;
       }
     };
 
